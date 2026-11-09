@@ -1,0 +1,16 @@
+node_modules/
+coverage/
+native/
+.ode-cloud/
+credentials.json
+adapter-credentials.json
+cloud-credentials.json
+pan123-device-id
+tasks/
+sdk/
+downloads/
+*.log
+*.tmp
+*.part
+*.part.json
+*.resume.json

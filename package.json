@@ -1,0 +1,19 @@
+{
+  "name": "ode-cloud",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "独立网盘登录、分享解析与 HTTP/可选 SDK 下载命令行",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "ode-cloud": "./cli.mjs"
+  },
+  "scripts": {
+    "start": "node cli.mjs",
+    "test": "node --test test/*.test.mjs",
+    "check": "node scripts/check.mjs",
+    "build": "node scripts/build-portable.mjs"
+  }
+}
