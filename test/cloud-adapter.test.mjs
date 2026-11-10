@@ -85,7 +85,6 @@ test('unified runtime keeps account credentials out of CDN requests and refreshe
     ['pan123', 'https://www.123pan.com/s/AbC-123', { token: 'private' }, 'openPan123Share'],
     ['tianyi', 'https://cloud.189.cn/t/AbC123', { cookie: 'SSO=private' }, 'openTianyiShare'],
     ['yidong', 'https://yun.139.com/shareweb/#/w/i/xyz123', { authorization: 'Basic private' }, 'openYidongShare'],
-    ['baidu', 'https://pan.baidu.com/s/1example', { cookie: 'BDUSS=private' }, 'openBaiduShare'],
   ]) {
     const linked = [];
     const transfers = [];

@@ -23,6 +23,7 @@ export function prepareShare(raw, options = {}) {
   if (!match) throw new Error('请输入网盘官方分享链接');
   const original = match[0].replace(/[),，。；;]+$/, '');
   const url = new URL(/^https?:/i.test(original) ? original : 'https://' + original);
+  if (url.protocol === 'http:' && url.hostname === 'pan.baidu.com' && !url.username && !url.password && !url.port) url.protocol = 'https:';
   if (url.protocol !== 'https:' || url.username || url.password || url.port) throw new Error('只接受无嵌入凭据的官方 HTTPS 分享链接');
   const host = url.hostname.toLowerCase();
   const domains = { 'pan.xunlei.com': 'xunlei', 'pan.quark.cn': 'quark', '115.com': '115', '115cdn.com': '115', '115rc.com': '115', 'cloud.189.cn': 'tianyi', 'yun.139.com': 'yidong', 'pan.baidu.com': 'baidu', '123pan.com': 'pan123', 'www.123pan.com': 'pan123', '123pan.cn': 'pan123', 'www.123pan.cn': 'pan123', '123865.com': 'pan123', 'www.123865.com': 'pan123', '123865.cn': 'pan123', 'www.123865.cn': 'pan123', 'share.123pan.cn': 'pan123' };
@@ -73,10 +74,27 @@ export function createServices(overrides = {}) {
       const share = dependencies.xunleiShareFactory(auth);
       return { platform: prepared.platform, auth, share, files: await share.list(prepared.url) };
     }
+    if (prepared.platform === 'baidu') {
+      const credential = await dependencies.loadCloudCredential('baidu');
+      const openAnonymous = async () => {
+        const resolved = await dependencies.openBaiduShare(prepared.raw, {});
+        return { platform: prepared.platform, ...resolved, resolved };
+      };
+      if (credential?.cookie) {
+        try {
+          const resolved = await dependencies.openBaiduShare(prepared.raw, credential);
+          return { platform: prepared.platform, ...resolved, resolved };
+        } catch (error) {
+          if (!/重新认证/.test(String(error?.message || ''))) throw error;
+          return openAnonymous();
+        }
+      }
+      return openAnonymous();
+    }
     const credential = await dependencies.loadCloudCredential(prepared.platform);
     const required = prepared.platform === 'pan123' ? 'token' : prepared.platform === 'yidong' ? 'authorization' : 'cookie';
     if (!credential?.[required]) throw new Error('请先执行 node cli.mjs login ' + prepared.platform);
-    const opener = { baidu: dependencies.openBaiduShare, pan123: dependencies.openPan123Share, tianyi: dependencies.openTianyiShare, yidong: dependencies.openYidongShare }[prepared.platform];
+    const opener = { pan123: dependencies.openPan123Share, tianyi: dependencies.openTianyiShare, yidong: dependencies.openYidongShare }[prepared.platform];
     const resolved = await opener(prepared.raw, credential);
     return { platform: prepared.platform, ...resolved, resolved };
   };
@@ -173,6 +191,7 @@ export function createServices(overrides = {}) {
       return { platform: prepared.platform, count: opened.files.length, totalBytes: opened.files.every(file => Number.isSafeInteger(file.size) && file.size >= 0) ? opened.files.reduce((total, file) => total + file.size, 0) : null, files: opened.files.map(fileInfo) };
     },
     async download(prepared, target, options, onProgress) {
+      if (prepared.platform === 'baidu') throw new Error('暂不支持百度网盘下载（不转存下载）；仅支持 node cli.mjs share 列出百度分享文件');
       const opened = await resolveCloud(prepared);
       if (prepared.platform === 'xunlei') return dependencies.runPipeline({
         auth: opened.auth, share: { list: async () => opened.files, links: (...args) => opened.share.links(...args) },
@@ -218,9 +237,11 @@ export function createServices(overrides = {}) {
           if (expected !== undefined && transfer.size !== expected) throw new Error('下载文件大小不符');
           reporter.event('done', index, { size: transfer.size });
           results.push({ name, path: destination, size: transfer.size, status: 'done' });
-        } catch {
+        } catch (error) {
           reporter.event('failed', index);
-          results.push({ name, path: destination, size: file.size ?? null, status: 'failed', error: '下载失败，请检查账号权限、分享有效性、网络和目标目录' });
+          const reason = String(error?.message || '').trim();
+          results.push({ name, path: destination, size: file.size ?? null, status: 'failed',
+            error: reason ? reason : '下载失败，请检查账号权限、分享有效性、网络和目标目录' });
         }
       }
       return { results };

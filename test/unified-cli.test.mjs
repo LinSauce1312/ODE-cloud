@@ -187,12 +187,12 @@ test('xunlei HTTP 参数和 SDK 路径均仅 mock 原pipeline，不加载原生�
   assert.equal(Object.hasOwn(received, 'check'), false);
 });
 
-test('pan123 tianyi yidong baidu 复用认证 opener，保持路径、请求头和取链刷新', async () => {
-  for (const platform of ['pan123', 'tianyi', 'yidong', 'baidu']) {
+test('pan123 tianyi yidong 复用认证 opener，保持路径、请求头和取链刷新', async () => {
+  for (const platform of ['pan123', 'tianyi', 'yidong']) {
     let downloaded;
     let links = 0;
     const opened = { files: [{ name: 'folder/file.zip', size: 3 }], share: {}, client: { getShareDownloadLink: async () => { links += 1; return { url: 'https://cdn.example/file', headers: { Cookie: 'cdn' } }; } } };
-    const opener = 'open' + { pan123: 'Pan123', tianyi: 'Tianyi', yidong: 'Yidong', baidu: 'Baidu' }[platform] + 'Share';
+    const opener = 'open' + { pan123: 'Pan123', tianyi: 'Tianyi', yidong: 'Yidong' }[platform] + 'Share';
     const services = createServices({
       loadCloudCredential: async () => ({ token: 'token', cookie: 'cookie', authorization: 'authorization' }),
       [opener]: async () => opened,
@@ -255,11 +255,11 @@ test('whoami 转发七平台，direct 仅用严格 output/http/workers/chunk 参
 });
 
 test('get 和 direct 结果统一汇总绝对路径、数量与总字节', async () => {
-  const result = await run(['get', urls.baidu, '--output', 'target'], { output: silent, services: {
+  const result = await run(['get', urls.pan123, '--output', 'target'], { output: silent, services: {
     download: async () => ({ results: [{ name: 'folder/a.zip', size: 3 }, { name: 'b.txt', size: 4 }] }),
   } });
   assert.deepEqual(result, {
-    platform: 'baidu', engine: 'http', output: path.resolve('target'), count: 2, totalBytes: 7,
+    platform: 'pan123', engine: 'http', output: path.resolve('target'), count: 2, totalBytes: 7,
     results: [
       { ...fileInfo({ name: 'folder/a.zip', size: 3 }), path: path.resolve('target', 'folder', 'a.zip'), status: 'done' },
       { ...fileInfo({ name: 'b.txt', size: 4 }), path: path.resolve('target', 'b.txt'), status: 'done' },
