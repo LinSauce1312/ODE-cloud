@@ -15,6 +15,7 @@ node cli.mjs --help
 - Node.js 22+；无第三方 npm 依赖，不需要 npm install。发布包不附带 Node。
 - 官网登录需要本机 Chrome / Edge。默认寻找 Windows 常见安装路径；其他系统或非标准位置请显式指定浏览器可执行文件。
 - 在项目目录运行下列命令。文件路径含空格请加引号，Windows 示例使用正斜线。
+- Windows 一键准备：右键「使用 PowerShell 运行」`环境安装脚本.ps1`，或执行 `powershell -ExecutionPolicy Bypass -File 环境安装脚本.ps1`。脚本自动检测 Node.js（缺失则先安装官方 LTS 再复检），随后依次运行完整性校验（node scripts/check.mjs）、CLI 冒烟（node cli.mjs --help）与离线回归（node --test "test/*.test.mjs"）；参数 -SkipInstall 跳过安装、-SkipTests 跳过回归测试。
 - 登录、校验、分享和下载受官方接口、账号权限、会员、风控和分享有效期限制。仅访问你有权使用的资源，不绕过授权。
 
 ## 2. 平台名称与能力
@@ -268,6 +269,8 @@ node cli.mjs --help
 npm run check
 npm test
 node scripts/build-portable.mjs ../my-cloud-release
+# Windows 一键环境准备（检测/安装 Node、完整性校验、冒烟、回归）
+powershell -ExecutionPolicy Bypass -File 环境安装脚本.ps1
 ```
 
 打包目标必须是全新目录，拒绝覆盖或写进项目自身；仅复制源码/文档/测试/独立 SDK 安装脚本，始终排除 native 组件目录及二进制，排除账号、profile、下载文件和运行日志。搬到另一目录后可独立运行和重新打包。发布包不附带 Node.js，也不依赖 ODE-catalog、ode-adapter 或 xunlei-pipeline。

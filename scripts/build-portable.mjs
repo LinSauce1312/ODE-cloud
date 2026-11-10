@@ -7,6 +7,7 @@ export const SOURCE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.u
 export const PORTABLE_FILES = Object.freeze([
   "cli.mjs",
   "package.json",
+  "环境安装脚本.ps1",
   "README.md",
   "USAGE.md",
   "DEVELOPMENT.md",

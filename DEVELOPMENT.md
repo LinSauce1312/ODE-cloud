@@ -17,6 +17,8 @@ node cli.mjs --help
 node cli.mjs status all
 node cli.mjs login quark
 node cli.mjs login xunlei --sms 13800138000
+# Windows 一键环境准备（检测/安装 Node、完整性校验、冒烟、回归）
+powershell -ExecutionPolicy Bypass -File 环境安装脚本.ps1
 ~~~
 
 status all 会在线核验已有会话；无凭据时不应猜测账号已登录。涉及真实账号、短信发送或下载的命令应由持有账号权限的人显式执行，不是离线测试步骤。
@@ -34,6 +36,7 @@ ODE-cloud/
 ├── DEVELOPMENT.md
 ├── package.json
 ├── cli.mjs
+├── 环境安装脚本.ps1
 ├── urlsdk.mjs
 ├── scripts/
 │   ├── check.mjs
@@ -217,6 +220,8 @@ HTTP 下载在目标文件旁写临时文件：
 npm run check
 npm test
 npm run build -- ../ode-cloud-portable-new
+# Windows 一键环境准备（可选）
+powershell -ExecutionPolicy Bypass -File 环境安装脚本.ps1
 ~~~
 
 check 用于静态项目检查，test 使用标准 node --test，build 复制公开白名单文件到全新目录。也可以直接运行：

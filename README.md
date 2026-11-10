@@ -32,6 +32,8 @@ ODE-cloud 把 7 家网盘的账号会话、分享列表和下载统一到一个 
 
 需要 **Node.js 22+**，无需 `npm install`；官网登录需要本机 Chrome 或 Edge。
 
+Windows 用户可右键“使用 PowerShell 运行”`环境安装脚本.ps1`：它会自动检测 Node.js（缺失则安装官方 LTS），然后依次执行完整性校验、CLI 冒烟与离线回归测试，全程无需手动配置环境。
+
 ```sh
 node cli.mjs --help
 
@@ -68,6 +70,7 @@ node cli.mjs direct "https://example.com/file.zip" --output "./downloads/file.zi
 npm run check                       # 校验白名单、语法与导入边界
 npm test                            # 离线回归测试
 node scripts/build-portable.mjs ../my-cloud-release   # 生成全新便携目录
+# Windows 一键环境准备：环境安装脚本.ps1（检测/安装 Node、完整性校验、冒烟、回归）
 ```
 
 打包目标必须是全新目录，脚本拒绝覆盖或写入项目自身。发布包不附带 Node.js，也不依赖 ODE-catalog 或其他旧目录。
