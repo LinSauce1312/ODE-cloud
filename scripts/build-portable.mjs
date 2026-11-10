@@ -8,6 +8,7 @@ export const PORTABLE_FILES = Object.freeze([
   "cli.mjs",
   "package.json",
   "README.md",
+  "USAGE.md",
   "DEVELOPMENT.md",
   ".gitignore",
   ".editorconfig",

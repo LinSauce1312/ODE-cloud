@@ -1,6 +1,6 @@
 # ODE-cloud 开发指南
 
-本项目是独立的 Node.js 网盘命令行项目，不提供 UI，不依赖软件/游戏查询项目或旧项目目录。面向使用者的命令说明见 [README](README.md)，本文件说明开发结构、扩展方式及验证边界。
+本项目是独立的 Node.js 网盘命令行项目，不提供 UI，不依赖软件/游戏查询项目或旧项目目录。面向使用者的完整命令教程见 [USAGE](USAGE.md)，项目介绍见 [README](README.md)，本文件说明开发结构、扩展方式及验证边界。
 
 ## 1. 环境与快速运行
 
@@ -30,6 +30,7 @@ ODE-cloud/
 ├── .editorconfig
 ├── .gitignore
 ├── README.md
+├── USAGE.md
 ├── DEVELOPMENT.md
 ├── package.json
 ├── cli.mjs
@@ -204,7 +205,7 @@ HTTP 下载在目标文件旁写临时文件：
 3. 为官网浏览器捕获、凭据必需字段、本地存储和 logout/status/whoami 绑定同一平台身份；只有有证据的官方账号检查才设置 verified:true，未知保持 null。
 4. 限定 Cookie/token 来源和发送目标，处理 HTTP 重定向及 CDN 的请求头隔离，不把账号长期凭据默认发送到下载域名。
 5. 使用统一进度/文件投影；补充失败、空目录、重复分页、越界路径、失效会话和短链刷新测试。
-6. 更新 [README](README.md)、本指南、[公开文件白名单](scripts/build-portable.mjs) 和对应测试，验证迁移目录后的独立运行。
+6. 更新 [使用教程](USAGE.md)、[README](README.md)、本指南、[公开文件白名单](scripts/build-portable.mjs) 和对应测试，验证迁移目录后的独立运行。
 
 新增参数必须同时更新 schema、parseArgs 校验、运行时传递、帮助及文档；写明单位、默认值、范围、冲突和适用引擎。未知/重复参数应在访问服务之前拒绝。不要新增只展示但不实际传到引擎的“空参数”，也不要恢复旧密码/别名兼容层。
 
