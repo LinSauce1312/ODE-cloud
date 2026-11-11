@@ -48,7 +48,9 @@ ODE-cloud/
 │   ├── baidu-share.mjs
 │   ├── pan123-share.mjs
 │   ├── tianyi-share.mjs
-│   └── yidong-share.mjs
+│   ├── yidong-share.mjs
+│   ├── uc-share.mjs
+│   └── guangya-share.mjs
 ├── lib/
 │   ├── paths.mjs
 │   ├── config.mjs
@@ -79,6 +81,8 @@ ODE-cloud/
     ├── sdk-engine.test.mjs
     ├── standalone.test.mjs
     ├── tianyi-share.test.mjs
+    ├── uc-share.test.mjs
+    ├── guangya-share.test.mjs
     ├── unified-cli.test.mjs
     ├── urlsdk.test.mjs
     ├── web-login.test.mjs
@@ -116,6 +120,8 @@ cli.mjs run(argv)
 - [auth.mjs](lib/auth.mjs)：迅雷会话、SMS、验证码令牌、refresh、鉴权请求与退出，不再提供账号密码登录。
 - [game-share.mjs](lib/game-share.mjs)：迅雷分享列表、取链与共享安全路径校验。
 - [quark.mjs](lib/quark.mjs)、[pan115.mjs](lib/pan115.mjs) 及 [src 中的平台模块](src/)：官网分享解析、分页、目录遍历、平台短期下载请求（百度仅列表，不提供下载）。
+- [uc-share.mjs](src/uc-share.mjs)：UC 游客分享。官方 pc-api.uc.cn 分享页令牌 → 递归 transfer_share/detail 列举 → file/download 取直链，全程无账号凭据；受 31001（需登录）与 23018（游客大小限制）约束。
+- [guangya-share.mjs](src/guangya-share.mjs)：光鸭公开分享。文档化 /userres/v1 命名空间 get_share_access_token → 递归 get_share_page_files_list → get_share_download_url，全程无账号凭据；分享者未开启免登录（code 207）时明确失败，不使用 LinkSwift 的 /nd.bizuserres.s/v1 已登录命名空间。
 - [pipeline.mjs](lib/pipeline.mjs)：迅雷 HTTP/SDK 顺序文件编排；[cloud-pipeline.mjs](lib/cloud-pipeline.mjs)：夸克/115 HTTP 编排；[export-format.mjs](lib/export-format.mjs)：把 link 结果渲染成 json/curl/aria2 纯文本，仅做格式化，不碰网络与凭据。
 - [engine.mjs](lib/engine.mjs)：通用 HTTP 传输与断点；[sdk-engine.mjs](lib/sdk-engine.mjs)：按需加载原生组件，不负责安装组件。
 - [download-progress.mjs](lib/download-progress.mjs)：统一文件元数据、生命周期事件、节流动态行及控制字符过滤。
@@ -154,7 +160,7 @@ await run(['direct', 'https://example.com/file.bin', '--output', './output/file.
 
 ### 账号
 
-当前平台为 xunlei、quark、pan123、tianyi、yidong、baidu、115。login 默认官网浏览器，仅迅雷另有 --sms；不接受 --account、--password、旧密码环境变量或其他登录别名。
+当前登录平台为 xunlei、quark、pan123、tianyi、yidong、baidu、115。login 默认官网浏览器，仅迅雷另有 --sms；不接受 --account、--password、旧密码环境变量或其他登录别名。UC（uc）与光鸭（guangya）为游客分享直链，不提供 login/status/whoami，仅在 share/link/get 中按分享域名识别。
 
 账号状态统一为：
 
@@ -173,7 +179,7 @@ await run(['direct', 'https://example.com/file.bin', '--output', './output/file.
 
 ### 分享与下载
 
-prepareShare 返回 platform、raw、url；它不是密码输入界面。提取码只从链接或分享文案读入，字段名 password 在平台分享对象中表示分享访问码，不能因删除账号密码功能而一并删除。
+prepareShare 返回 platform、raw、url；它不是密码输入界面。UC、光鸭在此按 drive.uc.cn/fast.uc.cn 与 guangyapan.com 域名识别为 uc/guangya，并在 resolveCloud 中走无账号的 openUcShare/openGuangyaShare 分支；二者不经过 loadCloudCredential，也不会触发 login。提取码只从链接或分享文案读入，字段名 password 在平台分享对象中表示分享访问码，不能因删除账号密码功能而一并删除。
 
 适配器内部文件至少应具备完整相对 name、size 以及平台取链需要的 id 等字段。目录层级使用 /，不得在输出阶段只保留 basename。CLI 文件投影由 fileInfo 统一产生 name、size、sizeBytes、filename、directory、extension、type，有限保留 id 与格式有效的散列。
 

@@ -22,6 +22,8 @@ export const PORTABLE_FILES = Object.freeze([
   "src/baidu-share.mjs",
   "src/tianyi-share.mjs",
   "src/yidong-share.mjs",
+  "src/uc-share.mjs",
+  "src/guangya-share.mjs",
   "lib/paths.mjs",
   "lib/config.mjs",
   "lib/auth.mjs",
@@ -54,7 +56,9 @@ export const PORTABLE_FILES = Object.freeze([
   "test/unified-cli.test.mjs",
   "test/account-commands.test.mjs",
   "test/baidu-share.test.mjs",
-  "test/download-progress.test.mjs"
+  "test/download-progress.test.mjs",
+  "test/uc-share.test.mjs",
+  "test/guangya-share.test.mjs"
 ]);
 
 function inside(root, candidate) {

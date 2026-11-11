@@ -31,8 +31,12 @@ node cli.mjs --help
 | 移动 | yidong | 官网浏览器捕获 authorization | 尚无独立账号校验，verified 为 null | HTTP |
 | 百度 | baidu | 官网浏览器 | 支持 | 官方分享递归列表；暂不支持下载（不转存、不解析直链） |
 | 115 | 115 | 官网浏览器 | 官方账号接口校验与账号信息 | HTTP |
+| UC | uc | 无需登录（游客分享直链） | 不适用（无账号模式） | 游客分享递归列表与直链；31001 需登录 / 23018 游客大小限制 |
+| 光鸭 | guangya | 无需登录（公开分享接口尝试） | 不适用（无账号模式） | /userres/v1 匿名列表与直链；207 分享者未开启免登录 |
 
 “支持”表示保留了实现，不代表本次已经用真实账号在线验证。移动暂缺已证实的主动账号请求协议，verified 保持 null；其他平台通过官方接口判断，不会仅凭 Cookie/token 存在就报告成功。
+
+UC、光鸭为游客分享直链，不参与 login/status/whoami，也不保存账号。二者仅在 share/link/get 中按分享链接识别，无需先登录：UC 走官方游客分享接口，受 31001（需登录）与 23018（游客大小限制）约束；光鸭尝试文档化的公开 /userres/v1 匿名接口，若分享者未开启免登录（code 207）则明确失败，此时需在官网登录后下载，程序不会伪造登录或绕过该限制。
 
 ## 3. 全部命令速查
 
@@ -73,7 +77,7 @@ node cli.mjs login 115 --browser "C:/Program Files/Microsoft/Edge/Application/ms
 
 | 参数 | 行为 |
 | --- | --- |
-| 平台 | 必填，仅限平台表中的 7 个标识 |
+| 平台 | 必填，仅限平台表中的 7 个登录标识（UC、光鸭不提供登录） |
 | --browser | 可选；无值时自动寻找浏览器，与不传此参数相同 |
 | --browser 路径 | 显式指定 Chrome / Edge 可执行文件；路径不是 profile 目录 |
 | --sms 手机号 | 仅迅雷；使用终端短信登录，不能与 --browser 混用 |
@@ -164,10 +168,12 @@ node cli.mjs whoami 115
 
 ### 3.6 分享列表与完整文件路径
 
-先登录对应平台，再列举分享中的全部文件：
+登录平台先登录再列举；UC 与光鸭是游客/公开分享，不需要登录：
 
 ```sh
 node cli.mjs share "https://pan.baidu.com/share/init?surl=XXXX"
+node cli.mjs share "https://drive.uc.cn/s/XXXX"            # UC 游客分享（提取码用 ?pwd=）
+node cli.mjs share "https://www.guangyapan.com/s/XXXX"     # 光鸭公开分享（访问码用 ?code= 或 ?pwd=）
 ```
 
 始终输出 JSON，不需要任何格式参数：
@@ -194,6 +200,8 @@ node cli.mjs share "https://pan.baidu.com/share/init?surl=XXXX"
 
 ```sh
 node cli.mjs link "官方分享链接" --format json
+node cli.mjs link "https://drive.uc.cn/s/XXXX?pwd=abcd" --format curl    # UC 游客取链
+node cli.mjs link "https://www.guangyapan.com/s/XXXX" --format aria2  # 光鸭公开分享取链
 node cli.mjs link "官方分享链接" --format curl
 node cli.mjs link "官方分享链接" --format aria2 --file "目录/文件1.zip,目录/文件2.zip"
 ```
@@ -217,6 +225,8 @@ node cli.mjs link "官方分享链接" --format aria2 --file "目录/文件1.zip
 node cli.mjs get "https://pan.xunlei.com/s/你的分享" --output "D:/Downloads" --engine http --file "文件夹名1/文件夹名2/真正的文件2.zip"
 node cli.mjs get "官方分享链接" --output "./downloads"
 node cli.mjs get "官方分享链接" --output "./downloads" --file "目录/文件1.zip,目录/文件2.zip" --workers 4 --chunk 8
+node cli.mjs get "https://drive.uc.cn/s/XXXX?pwd=abcd" --output "D:/Downloads"        # UC 游客下载
+node cli.mjs get "https://www.guangyapan.com/s/XXXX" --output "D:/Downloads"   # 光鸭公开分享下载
 node cli.mjs get "https://pan.xunlei.com/s/VP5p24kKNhi70haf2_fvl86oA1?pwd=vu6z" --output "D:/Downloads" --engine sdk
 ```
 

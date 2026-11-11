@@ -7,6 +7,8 @@ import { loginXunleiWithBrowser } from '../lib/web-login.mjs';
 import { loginWithBrowser, loadCloudCredential as loadBrowserCredential, loadCloudCredentialRecord, clearCloudCredential } from '../lib/browser-login.mjs';
 import { loginCloud, inspectCloudAccount, safeCloudIdentity, hasCloudIdentity, loadCloudCredential, clearCredential } from './cloud-login.mjs';
 import { openBaiduShare, parseBaiduShareUrl } from './baidu-share.mjs';
+import { openUcShare, parseUcShareUrl } from './uc-share.mjs';
+import { openGuangyaShare, parseGuangyaShareUrl } from './guangya-share.mjs';
 import { createDownloadProgress, fileInfo } from '../lib/download-progress.mjs';
 import { openPan123Share, parsePan123Share } from './pan123-share.mjs';
 import { openTianyiShare, parseTianyiShareUrl } from './tianyi-share.mjs';
@@ -26,12 +28,12 @@ export function prepareShare(raw, options = {}) {
   if (url.protocol === 'http:' && url.hostname === 'pan.baidu.com' && !url.username && !url.password && !url.port) url.protocol = 'https:';
   if (url.protocol !== 'https:' || url.username || url.password || url.port) throw new Error('只接受无嵌入凭据的官方 HTTPS 分享链接');
   const host = url.hostname.toLowerCase();
-  const domains = { 'pan.xunlei.com': 'xunlei', 'pan.quark.cn': 'quark', '115.com': '115', '115cdn.com': '115', '115rc.com': '115', 'cloud.189.cn': 'tianyi', 'yun.139.com': 'yidong', 'pan.baidu.com': 'baidu', '123pan.com': 'pan123', 'www.123pan.com': 'pan123', '123pan.cn': 'pan123', 'www.123pan.cn': 'pan123', '123865.com': 'pan123', 'www.123865.com': 'pan123', '123865.cn': 'pan123', 'www.123865.cn': 'pan123', 'share.123pan.cn': 'pan123' };
+  const domains = { 'pan.xunlei.com': 'xunlei', 'pan.quark.cn': 'quark', '115.com': '115', '115cdn.com': '115', '115rc.com': '115', 'cloud.189.cn': 'tianyi', 'yun.139.com': 'yidong', 'pan.baidu.com': 'baidu', 'drive.uc.cn': 'uc', 'fast.uc.cn': 'uc', 'www.guangyapan.com': 'guangya', 'guangyapan.com': 'guangya', '123pan.com': 'pan123', 'www.123pan.com': 'pan123', '123pan.cn': 'pan123', 'www.123pan.cn': 'pan123', '123865.com': 'pan123', 'www.123865.com': 'pan123', '123865.cn': 'pan123', 'www.123865.cn': 'pan123', 'share.123pan.cn': 'pan123' };
   const platform = domains[host];
   if (!platform) throw new Error('无法识别官方分享平台');
 
   const value = String(raw).replace(original, url.href);
-  const parsers = { baidu: parseBaiduShareUrl, quark: parseQuarkShareUrl, '115': parse115ShareUrl, pan123: parsePan123Share, tianyi: parseTianyiShareUrl, yidong: parseYidongShareUrl };
+  const parsers = { baidu: parseBaiduShareUrl, uc: parseUcShareUrl, guangya: parseGuangyaShareUrl, quark: parseQuarkShareUrl, '115': parse115ShareUrl, pan123: parsePan123Share, tianyi: parseTianyiShareUrl, yidong: parseYidongShareUrl };
   parsers[platform]?.(value);
   if (options.engine === 'sdk' && platform !== 'xunlei') throw new Error('只有迅雷分享支持 SDK/P2SP');
   return { platform, raw: value, url: url.href };
@@ -42,7 +44,7 @@ export function createServices(overrides = {}) {
     authLoader: () => XunleiAuth.load(), loginXunleiWithBrowser, loginWithBrowser, loginCloud,
     inspectCloudAccount, loadBrowserCredential, loadCloudCredentialRecord, clearCloudCredential, loadCloudCredential, clearCredential,
     cloudClient, runCloudPipeline, runPipeline, downloadHttp,
-    xunleiShareFactory: auth => new GameAssistantShare(auth), openBaiduShare, openPan123Share, openTianyiShare, openYidongShare,
+    xunleiShareFactory: auth => new GameAssistantShare(auth), openBaiduShare, openUcShare, openGuangyaShare, openPan123Share, openTianyiShare, openYidongShare,
     terminalFactory: () => createInterface({ input: process.stdin, output: process.stdout }), stat,
     ...overrides,
   };
@@ -73,6 +75,10 @@ export function createServices(overrides = {}) {
       const auth = await requireAuth();
       const share = dependencies.xunleiShareFactory(auth);
       return { platform: prepared.platform, auth, share, files: await share.list(prepared.url) };
+    }
+    if (prepared.platform === 'uc' || prepared.platform === 'guangya') {
+      const resolved = await (prepared.platform === 'uc' ? dependencies.openUcShare : dependencies.openGuangyaShare)(prepared.raw);
+      return { platform: prepared.platform, ...resolved, resolved };
     }
     if (prepared.platform === 'baidu') {
       const credential = await dependencies.loadCloudCredential('baidu');
@@ -280,7 +286,7 @@ export function createServices(overrides = {}) {
     },
     async direct(value, target, options, onProgress) {
       const host = new URL(value).hostname.toLowerCase();
-      if (['pan.quark.cn', 'pan.baidu.com', 'pan.xunlei.com', '115.com', '115cdn.com', '115rc.com', 'cloud.189.cn', 'yun.139.com', '123pan.com', '123pan.cn', '123865.com', '123865.cn'].some(domain => host === domain || host.endsWith('.' + domain))) throw new Error('网盘分享页请使用 get，而不是 direct');
+      if (['pan.quark.cn', 'pan.baidu.com', 'drive.uc.cn', 'fast.uc.cn', 'guangyapan.com', 'pan.xunlei.com', '115.com', '115cdn.com', '115rc.com', 'cloud.189.cn', 'yun.139.com', '123pan.com', '123pan.cn', '123865.com', '123865.cn'].some(domain => host === domain || host.endsWith('.' + domain))) throw new Error('网盘分享页请使用 get，而不是 direct');
       const metadata = await dependencies.stat(target).catch(error => { if (error.code === 'ENOENT') return null; throw error; });
       if (metadata?.isDirectory()) throw new Error('direct 目标必须是文件名，不能是目录');
       const name = path.basename(target);

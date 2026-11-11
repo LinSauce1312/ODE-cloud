@@ -348,3 +348,55 @@ test('link 拒绝百度下载链接并脱敏失败错误', async () => {
     return true;
   });
 });
+
+test('UC 与光鸭按分享域名走无账号分支，share/link 都不读取任何账号凭据', async () => {
+  const guests = {
+    uc: 'https://drive.uc.cn/s/share123?pwd=abcd',
+    guangya: 'https://www.guangyapan.com/s/share456?code=abcd',
+  };
+  for (const [platform, url] of Object.entries(guests)) {
+    assert.equal(prepareShare(url).platform, platform);
+    assert.equal(prepareShare('分享链接：' + url).platform, platform);
+  }
+  assert.throws(() => prepareShare('https://drive.uc.cn.evil.test/s/abc'), /无法识别官方分享平台/);
+  assert.throws(() => prepareShare('https://www.guangyapan.com.evil.test/s/abc'), /无法识别官方分享平台/);
+
+  for (const [platform, url] of Object.entries(guests)) {
+    const calls = [];
+    const opened = {
+      files: [{ name: 'folder/a.zip', size: 3 }], share: {},
+      client: { getShareDownloadLink: async (share, file) => { calls.push('link:' + file.name); return { url: 'https://cdn.example/f/a', headers: { 'User-Agent': 'ua' } }; } },
+    };
+    const services = createServices({
+      loadCloudCredential: async () => { calls.push('credential'); throw new Error('游客模式不得读取账号凭据'); },
+      loadBrowserCredential: async () => { calls.push('browser'); throw new Error('游客模式不得读取浏览器凭据'); },
+      openUcShare: async raw => { calls.push('open:' + raw); return opened; },
+      openGuangyaShare: async raw => { calls.push('open:' + raw); return opened; },
+    });
+    const shared = await run(['share', url], { services, output: silent });
+    assert.deepEqual(Object.keys(shared).sort(), ['count', 'files', 'platform', 'totalBytes']);
+    assert.equal(shared.platform, platform);
+    assert.equal(shared.count, 1);
+    assert.equal(shared.totalBytes, 3);
+    assert.deepEqual(calls, ['open:' + url]);
+    calls.length = 0;
+    const linked = await run(['link', url, '--file', 'folder/a.zip'], { services, output: silent });
+    assert.equal(linked.links[0].url, 'https://cdn.example/f/a');
+    assert.deepEqual(calls, ['open:' + url, 'link:folder/a.zip']);
+    calls.length = 0;
+    let transferred;
+    const downloading = createServices({
+      loadCloudCredential: async () => { calls.push('credential'); throw new Error('游客模式不得读取账号凭据'); },
+      openUcShare: async raw => { calls.push('open:' + raw); return opened; },
+      openGuangyaShare: async raw => { calls.push('open:' + raw); return opened; },
+      downloadHttp: async options => { transferred = options; return { size: 3 }; },
+    });
+    const got = await run(['get', url, '--output', 'target', '--file', 'folder/a.zip'], { services: downloading, output: silent });
+    assert.equal(got.count, 1);
+    assert.equal(got.totalBytes, 3);
+    assert.equal(got.results[0].status, 'done');
+    assert.equal(transferred.dest, path.resolve('target', 'folder', 'a.zip'));
+    assert.equal(transferred.headers['User-Agent'], 'ua');
+    assert.deepEqual(calls, ['open:' + url, 'link:folder/a.zip']);
+  }
+});
