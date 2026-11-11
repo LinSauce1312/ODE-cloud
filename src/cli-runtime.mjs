@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { stat } from 'node:fs/promises';
-import { CRED_FILE } from '../lib/config.mjs';
+import { CRED_FILE, DOWNLOAD_UA } from '../lib/config.mjs';
 import { createInterface } from 'node:readline/promises';
 import { XunleiAuth } from '../lib/auth.mjs';
 import { loginXunleiWithBrowser } from '../lib/web-login.mjs';
@@ -98,6 +98,26 @@ export function createServices(overrides = {}) {
     const resolved = await opener(prepared.raw, credential);
     return { platform: prepared.platform, ...resolved, resolved };
   };
+  const freshLinkFor = async (prepared, opened, file) => {
+    if (prepared.platform === 'xunlei') {
+      const map = await opened.share.links([file.gcid], { withTokens: false });
+      const url = map.get(file.gcid);
+      if (!url) throw new Error('未获得可用直链');
+      return { url, headers: { 'user-agent': DOWNLOAD_UA, referer: 'https://pan.xunlei.com/' }, size: file.size };
+    }
+    if (prepared.platform === 'quark' || prepared.platform === '115') {
+      const link = prepared.platform === 'quark'
+        ? await opened.client.getShareDownloadLink(opened.resolved.share, file)
+        : await opened.client.link(prepared.raw, file);
+      if (!/^https:\/\//i.test(link.url)) throw new Error('刷新后的网盘直链不是 HTTPS');
+      if (!link.headers?.cookie && !link.headers?.Cookie) throw new Error('网盘直链缺少认证 Cookie');
+      return { url: link.url, headers: link.headers, size: link.size || file.size };
+    }
+    const link = await opened.client.getShareDownloadLink(opened.resolved.share, file);
+    const url = new URL(link.url);
+    if (url.protocol !== 'https:' || url.username || url.password) throw new Error('网盘未返回安全 HTTPS 下载链接');
+    return { url: link.url, headers: link.headers, size: link.size || file.size };
+  };
   const state = (platform, saved, verified = null, capturedAt = null) => ({ platform, saved: Boolean(saved), verified: saved ? verified : false, capturedAt: saved ? capturedAt || null : null });
   const accountFields = safeCloudIdentity;
   const inspect = async (platform, verify) => {
@@ -190,6 +210,23 @@ export function createServices(overrides = {}) {
       const opened = await resolveCloud(prepared);
       return { platform: prepared.platform, count: opened.files.length, totalBytes: opened.files.every(file => Number.isSafeInteger(file.size) && file.size >= 0) ? opened.files.reduce((total, file) => total + file.size, 0) : null, files: opened.files.map(fileInfo) };
     },
+    async link(prepared, options) {
+      if (prepared.platform === 'baidu') throw new Error('暂不支持百度网盘下载链接（仅支持 node cli.mjs share 列出文件）');
+      const opened = await resolveCloud(prepared);
+      const requested = options.file;
+      const available = new Set(opened.files.map(file => safeSharePath(file.name)));
+      for (const name of requested || []) if (!available.has(name)) throw new Error('未找到文件：' + name);
+      const selected = opened.files.filter(file => !requested || requested.includes(safeSharePath(file.name)));
+      if (!selected.length) throw new Error('没有匹配的可导出文件');
+      const links = [];
+      for (const file of selected) {
+        const fresh = await freshLinkFor(prepared, opened, file);
+        links.push({ name: safeSharePath(file.name), size: file.size, url: fresh.url, headers: fresh.headers || {} });
+      }
+      return { platform: prepared.platform, count: links.length,
+        totalBytes: selected.every(file => Number.isSafeInteger(file.size) && file.size >= 0) ? selected.reduce((total, file) => total + file.size, 0) : null,
+        links };
+    },
     async download(prepared, target, options, onProgress) {
       if (prepared.platform === 'baidu') throw new Error('暂不支持百度网盘下载（不转存下载）；仅支持 node cli.mjs share 列出百度分享文件');
       const opened = await resolveCloud(prepared);
@@ -222,12 +259,7 @@ export function createServices(overrides = {}) {
         const destination = path.join(target, ...name.split('/'));
         reporter.event('start', index);
         try {
-          const freshLink = async () => {
-            const link = await opened.client.getShareDownloadLink(opened.resolved.share, file);
-            const url = new URL(link.url);
-            if (url.protocol !== 'https:' || url.username || url.password) throw new Error('网盘未返回安全 HTTPS 下载链接');
-            return link;
-          };
+          const freshLink = () => freshLinkFor(prepared, opened, file);
           const link = await freshLink();
           const expected = file.size || link.size || undefined;
           const transfer = await dependencies.downloadHttp({ url: link.url, dest: destination, size: expected,

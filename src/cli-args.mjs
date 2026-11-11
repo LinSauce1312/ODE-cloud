@@ -6,6 +6,7 @@ const schemas = {
   login: ['browser', 'sms'],
   logout: [], status: ['verify'], whoami: [],
   share: [],
+  link: ['file', 'format'],
   get: ['output', 'file', 'workers', 'chunk', 'engine'],
   direct: ['output', 'workers', 'chunk', 'engine'],
 };
@@ -62,6 +63,11 @@ export function parseArgs(argv) {
   }
   if (positional.length !== 1) throw new Error(command + ' 必须且只能指定一个链接；下载目录请使用 --output');
   if (command === 'share') return { command, value: positional[0], options };
+  if (command === 'link') {
+    options.format ||= 'json';
+    if (!['json', 'curl', 'aria2'].includes(options.format)) throw new Error('--format 必须是 json、curl 或 aria2');
+    return { command, value: positional[0], options };
+  }
   if (!options.output) throw new Error('缺少 --output 下载路径（可使用相对于当前运行目录的路径）');
   const target = path.resolve(options.output);
   options.engine ||= 'http';

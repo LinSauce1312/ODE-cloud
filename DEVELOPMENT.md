@@ -62,7 +62,8 @@ ODE-cloud/
 │   ├── cloud-pipeline.mjs
 │   ├── engine.mjs
 │   ├── sdk-engine.mjs
-│   └── download-progress.mjs
+│   ├── download-progress.mjs
+│   └── export-format.mjs
 └── test/
     ├── account-commands.test.mjs
     ├── baidu-share.test.mjs
@@ -94,8 +95,9 @@ cli.mjs run(argv)
       └─ createServices(overrides)    组装默认实现或测试替身
           ├─ login / logout / status / whoami
           │   └─ 浏览器或迅雷 SMS → 官方账号检查 → 本地凭据
-          └─ share / get / direct
+          └─ share / link / get / direct
               └─ prepareShare → 平台适配器列举文件、临时取链
+                  ├─ link → 官方短时直链导出（json/curl/aria2，不下载）
                   └─ pipeline / cloud-pipeline / runtime 顺序编排
                       ├─ HTTP engine：Range 并发或单流
                       └─ SDK engine：仅迅雷，可选原生组件
@@ -114,7 +116,7 @@ cli.mjs run(argv)
 - [auth.mjs](lib/auth.mjs)：迅雷会话、SMS、验证码令牌、refresh、鉴权请求与退出，不再提供账号密码登录。
 - [game-share.mjs](lib/game-share.mjs)：迅雷分享列表、取链与共享安全路径校验。
 - [quark.mjs](lib/quark.mjs)、[pan115.mjs](lib/pan115.mjs) 及 [src 中的平台模块](src/)：官网分享解析、分页、目录遍历、平台短期下载请求（百度仅列表，不提供下载）。
-- [pipeline.mjs](lib/pipeline.mjs)：迅雷 HTTP/SDK 顺序文件编排；[cloud-pipeline.mjs](lib/cloud-pipeline.mjs)：夸克/115 HTTP 编排。
+- [pipeline.mjs](lib/pipeline.mjs)：迅雷 HTTP/SDK 顺序文件编排；[cloud-pipeline.mjs](lib/cloud-pipeline.mjs)：夸克/115 HTTP 编排；[export-format.mjs](lib/export-format.mjs)：把 link 结果渲染成 json/curl/aria2 纯文本，仅做格式化，不碰网络与凭据。
 - [engine.mjs](lib/engine.mjs)：通用 HTTP 传输与断点；[sdk-engine.mjs](lib/sdk-engine.mjs)：按需加载原生组件，不负责安装组件。
 - [download-progress.mjs](lib/download-progress.mjs)：统一文件元数据、生命周期事件、节流动态行及控制字符过滤。
 - [paths.mjs](lib/paths.mjs)、[config.mjs](lib/config.mjs)：项目独立数据目录、协议常量和运行配置，不从旧项目导入凭据。
@@ -176,6 +178,8 @@ prepareShare 返回 platform、raw、url；它不是密码输入界面。提取�
 适配器内部文件至少应具备完整相对 name、size 以及平台取链需要的 id 等字段。目录层级使用 /，不得在输出阶段只保留 basename。CLI 文件投影由 fileInfo 统一产生 name、size、sizeBytes、filename、directory、extension、type，有限保留 id 与格式有效的散列。
 
 get --file 逐项匹配完整相对路径，不使用模糊扩展名过滤。分享目录和目标路径都必须通过 safeSharePath；绝对路径、..、控制字符及跨目录写入需要拒绝。短期直链由适配器现场获取，不能把分享列表中的长期计划和短期签名混为一体。百度仅支持 share 列出分享文件，get/download 直接拒绝（不转存、不解析直链），在 cli-runtime.mjs download() 入口判断 platform==='baidu' 提前抛错。
+
+link 与 get 共用相同官方取链与 URL/Header 校验，但不落文件；仅接受 --file/--format（json/curl/aria2），默认 json，拒绝 --output/--engine/--workers/--chunk。百度同样在 cli-runtime.mjs link() 入口提前拒绝。导出的 url 与 headers（含 Cookie）是敏感短时凭据，只由 cli.mjs 输出到 stdout，不得写日志、进错误文本或持久化；失败错误经 sanitizeReason 脱敏。渲染逻辑集中在 export-format.mjs，纯文本格式化、不发起网络请求。
 
 最终下载 JSON 包含 platform、engine、output、count、totalBytes、results；单文件 status 为 done / exists / failed。stdout 保持结果 JSON，stderr 负责进度；未知大小为 null，不伪报 0。命令整体错误退出 1，下载结果含失败退出 2，正常退出 0；账号 verified:false/null 应通过 JSON 判断，不能只看退出码。
 

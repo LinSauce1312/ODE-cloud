@@ -30,6 +30,7 @@ export const PORTABLE_FILES = Object.freeze([
   "lib/quark.mjs",
   "lib/browser-login.mjs",
   "lib/cloud-pipeline.mjs",
+  "lib/export-format.mjs",
   "lib/download-progress.mjs",
   "urlsdk.mjs",
   "test/urlsdk.test.mjs",

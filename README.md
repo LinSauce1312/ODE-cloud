@@ -40,6 +40,7 @@ node cli.mjs --help
 node cli.mjs login quark
 node cli.mjs status quark --verify
 node cli.mjs share "官方分享链接"
+node cli.mjs link "官方分享链接" --format curl
 node cli.mjs get "官方分享链接" --output "D:/Downloads"
 ```
 

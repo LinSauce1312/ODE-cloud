@@ -52,6 +52,7 @@ node cli.mjs status all
 node cli.mjs whoami <平台>
 下载相关：
 node cli.mjs share <官方分享链接或文案>
+node cli.mjs link <官方分享链接或文案> [--file "完整路径1,完整路径2"] [--format json|curl|aria2]
 node cli.mjs get <官方分享链接或文案> --output <目录> [--file "完整路径1,完整路径2"] [--engine http|sdk] [--workers 1..32] [--chunk MiB]
 node cli.mjs direct <HTTP(S)文件直链> --output <目标文件> [--engine http] [--workers 1..32] [--chunk MiB]
 ```
@@ -187,7 +188,30 @@ node cli.mjs share "https://pan.baidu.com/share/init?surl=XXXX"
 
 **只接受支持平台的官方 HTTPS 分享链接或包含链接的分享文案**。访问码直接放在官网链接中（如 ?pwd=nc1i、天翼 accessCode 等平台支持的格式），或使用平台解析器支持的原始“提取码”文案；不再有 --password。百度支持 /share/init?surl=... 和 /s/1...，但**仅支持列出分享文件，不支持下载**（不转存、不解析直链）。遇到验证码、需要重新登录、私密分享、失效链接时明确失败，不破解验证、不猜签名、不返回伪直链。
 
-### 3.7 分享下载与唯一参数
+### 3.7 导出官方下载链接（不下载）
+
+把分享中的文件官方新鲜下载链接导出为 json / curl / aria2 命令，交给外部下载器执行，文件不落本机：
+
+```sh
+node cli.mjs link "官方分享链接" --format json
+node cli.mjs link "官方分享链接" --format curl
+node cli.mjs link "官方分享链接" --format aria2 --file "目录/文件1.zip,目录/文件2.zip"
+```
+
+| 参数 | 默认 / 约束 |
+| --- | --- |
+| 分享链接或文案 | **必填**，只能有一个位置参数，规则同 share/get |
+| --file 路径1,路径2 | 可选指定文件，精确匹配 share 的完整 name；规则同 get，不写导出全部 |
+| --format json\|curl\|aria2 | 可选，默认 json |
+
+`link` 与 `get` 共用完全相同的官方取链路径与 URL/Header 校验：百度**不支持下载链接**（仅 share 列表），执行会明确拒绝；移动缺少主动协议时无法取链也会如实失败。取链过程不下载文件，因此不接受 --output/--engine/--workers/--chunk。
+
+- `--format json`：输出统一 JSON，形如 `{ "platform", "count", "totalBytes", "links": [{ "name", "size", "url", "headers" }] }`；`name` 与 share 一致保留完整目录层级，`headers` 含该平台下载所需的 Cookie/Referer 等。
+- `--format curl` / `--format aria2`：按文件逐行输出纯文本命令；curl 用 `--create-dirs -o "相对路径"` 保留层级，aria2 用 `-d "目录" -o "文件名"`，Header 均用单引号安全包裹，文件名/目录中的单引号已转义。
+
+> 导出的链接与 Cookie 是敏感短时凭据，仅输出到 stdout，不写日志、不进错误文本、不持久化；请勿把输出粘贴到聊天、公开仓库或共享终端。链接会过期，失效后重新运行 link 刷新。
+
+### 3.8 分享下载与唯一参数
 
 ```sh
 node cli.mjs get "https://pan.xunlei.com/s/你的分享" --output "D:/Downloads" --engine http --file "文件夹名1/文件夹名2/真正的文件2.zip"

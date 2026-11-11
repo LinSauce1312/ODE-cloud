@@ -292,3 +292,59 @@ test('pipeline 失败先输出脱敏JSON再退出2，不泄漏原始签名URL', 
   assert.equal(result.results[0].status, 'failed');
   assert.doesNotMatch(outputs[0], /token=secret|cdn[.]example/);
 });
+
+test('link 命令解析：仅 file/format，默认 json，拒绝未知格式与旧参数', () => {
+  const base = parseArgs(['link', urls['115']]);
+  assert.deepEqual(base.options, { format: 'json' });
+  assert.equal(base.value, urls['115']);
+  const picked = parseArgs(['link', urls.quark, '--file', 'a.zip， b/c.txt ', '--format', 'curl']);
+  assert.deepEqual(picked.options.file, ['a.zip', 'b/c.txt']);
+  assert.equal(picked.options.format, 'curl');
+  assert.equal(parseArgs(['link', urls.xunlei, '--format', 'aria2']).options.format, 'aria2');
+  for (const argv of [
+    ['link', urls['115'], '--format', 'wget'], ['link', urls['115'], '--format'], ['link', urls['115'], '--format', 'curl', '--format', 'json'],
+    ['link', urls['115'], '--output', 'target'], ['link', urls['115'], '--workers', '8'], ['link', urls['115'], '--engine', 'sdk'],
+    ['link'], ['link', urls['115'], 'extra'],
+  ]) assert.throws(() => parseArgs(argv), undefined, argv.join(' '));
+});
+
+test('link 分派到 handlers.link 并输出 json 链接结果，含完整层级与 header', async () => {
+  let received;
+  let output;
+  const services = { link: async (prepared, options) => {
+    received = [prepared, options];
+    return { platform: prepared.platform, count: 1, totalBytes: 3, links: [{ name: 'folder/a.zip', size: 3, url: 'https://cdn.example/f/a', headers: { Cookie: 'cdn' } }] };
+  } };
+  const result = await run(['link', withPassword(urls['115'], '115'), '--file', 'folder/a.zip'], { services, output: value => { output = value; } });
+  assert.equal(received[0].platform, '115');
+  assert.deepEqual(received[1].file, ['folder/a.zip']);
+  const parsed = JSON.parse(output);
+  assert.equal(parsed.links[0].url, 'https://cdn.example/f/a');
+  assert.equal(parsed.links[0].headers.Cookie, 'cdn');
+  assert.deepEqual(result, parsed);
+});
+
+test('link curl/aria2 渲染为纯文本，目录名使用安全参数且不落日志', async () => {
+  const output = [];
+  const services = { link: async () => ({ platform: 'pan123', count: 1, totalBytes: 3, links: [
+    { name: 'folder/a.zip', size: 3, url: 'https://cdn.example/f/a', headers: { Cookie: 'c=v' } },
+  ] }) };
+  await run(['link', urls.pan123, '--format', 'curl'], { services, output: value => output.push(value) });
+  assert.equal(output.length, 1);
+  assert.match(output[0], /^curl -L --create-dirs -o 'folder\/a\.zip'/);
+  assert.match(output[0], /-H 'Cookie: c=v'/);
+  assert.match(output[0], /'https:\/\/cdn\.example\/f\/a'/);
+  output.length = 0;
+  await run(['link', urls.pan123, '--format', 'aria2'], { services, output: value => output.push(value) });
+  assert.match(output[0], /^aria2c -d 'folder' -o 'a\.zip'/);
+  assert.match(output[0], /--header='Cookie: c=v'/);
+});
+
+test('link 拒绝百度下载链接并脱敏失败错误', async () => {
+  // 百度拒绝发生在真实 cli-runtime link() 入口，不 mock 服务即可验证。
+  await assert.rejects(run(['link', urls.baidu], { output: silent }), /暂不支持百度网盘下载链接/);
+  await assert.rejects(run(['link', urls['115']], { services: { link: async () => { throw new Error('HTTP https://cdn.example/f?a=1&token=secret 失败'); } }, output: silent }), error => {
+    assert.doesNotMatch(error.message, /secret|https:/);
+    return true;
+  });
+});

@@ -4,9 +4,10 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs, PLATFORMS } from './src/cli-args.mjs';
 import { createServices, prepareShare } from './src/cli-runtime.mjs';
 import { createProgressRenderer, fileInfo } from './lib/download-progress.mjs';
+import { renderExport } from './lib/export-format.mjs';
 
 export { parseArgs };
-export const HELP = "ODE-cloud — 独立网盘命令行（唯一入口，无 UI）\n  node cli.mjs --help\n  node cli.mjs login <xunlei|quark|pan123|tianyi|yidong|baidu|115> [--browser [浏览器路径]]\n  node cli.mjs login xunlei --sms <11位手机号>\n  node cli.mjs logout <平台>\n  node cli.mjs status <平台> --verify\n  node cli.mjs status all\n  node cli.mjs whoami <平台>\n  node cli.mjs share <官方分享链接或文案>\n  node cli.mjs get <官方分享链接或文案> --output <目录>\n       [--file \"目录/文件1,目录/文件2\"] [--engine http|sdk]\n       [--workers 1..32] [--chunk 分片MiB]\n  node cli.mjs direct <HTTP(S)文件直链> --output <目标文件>\n       [--engine http] [--workers 1..32] [--chunk 分片MiB]\n--output 必填；相对路径以当前运行目录为基准。不传 --file 下载全部文件。\n--engine 默认 http；仅迅雷支持 sdk，SDK 自行调度，不接受 --workers/--chunk。\n分享访问码仅从链接或原始分享文案读取。所有命令和参数无别名。\nshare 始终输出 JSON，name 包含全部目录层级。进度写 stderr，结果 JSON 写 stdout。\n账号平台必须明确；登录默认官网浏览器，仅迅雷另有短信登录。";
+export const HELP = "ODE-cloud — 独立网盘命令行（唯一入口，无 UI）\n  node cli.mjs --help\n  node cli.mjs login <xunlei|quark|pan123|tianyi|yidong|baidu|115> [--browser [浏览器路径]]\n  node cli.mjs login xunlei --sms <11位手机号>\n  node cli.mjs logout <平台>\n  node cli.mjs status <平台> --verify\n  node cli.mjs status all\n  node cli.mjs whoami <平台>\n  node cli.mjs share <官方分享链接或文案>\n  node cli.mjs link <官方分享链接或文案> [--file \"目录/文件1,目录/文件2\"] [--format json|curl|aria2]\n  node cli.mjs get <官方分享链接或文案> --output <目录>\n       [--file \"目录/文件1,目录/文件2\"] [--engine http|sdk]\n       [--workers 1..32] [--chunk 分片MiB]\n  node cli.mjs direct <HTTP(S)文件直链> --output <目标文件>\n       [--engine http] [--workers 1..32] [--chunk 分片MiB]\n--output 必填；相对路径以当前运行目录为基准。不传 --file 下载全部文件。\n--engine 默认 http；仅迅雷支持 sdk，SDK 自行调度，不接受 --workers/--chunk。\n分享访问码仅从链接或原始分享文案读取。所有命令和参数无别名。\nshare 始终输出 JSON，name 包含全部目录层级。进度写 stderr，结果 JSON 写 stdout。\n账号平台必须明确；登录默认官网浏览器，仅迅雷另有短信登录。";
 
 function sanitizeReason(message) {
   if (typeof message !== 'string') return '';
@@ -32,7 +33,7 @@ export async function run(argv, { services, output = console.log, onProgress } =
   const parsed = parseArgs(argv);
   if (parsed.command === 'help') { output(HELP); return; }
   const { command, platform, options, value, target } = parsed;
-  const prepared = ['share', 'get'].includes(command) ? prepareShare(value, options) : null;
+  const prepared = ['share', 'get', 'link'].includes(command) ? prepareShare(value, options) : null;
   const handlers = services || createServices();
   let result;
   if (command === 'login') result = await handlers.login(platform, options, output);
@@ -42,6 +43,15 @@ export async function run(argv, { services, output = console.log, onProgress } =
     for (const selected of platform === 'all' ? PLATFORMS : [platform]) result.push(await handlers.status(selected, options));
   } else if (command === 'whoami') result = await handlers.whoami(platform);
   else if (command === 'share') result = await handlers.open(prepared, options);
+  else if (command === 'link') {
+    try { result = await handlers.link(prepared, options); }
+    catch (error) {
+      const safe = sanitizeReason(error?.message) || '导出链接失败，请检查账号权限、分享有效性与网络';
+      const wrapped = new Error(safe);
+      wrapped.exitCode = error?.exitCode;
+      throw wrapped;
+    }
+  }
   else if (command === 'get') {
     const reporter = onProgress || createProgressRenderer();
     try { result = await handlers.download(prepared, target, options, reporter); }
@@ -52,6 +62,7 @@ export async function run(argv, { services, output = console.log, onProgress } =
     finally { if (!onProgress) reporter.finish(); }
   }
   if (['get', 'direct'].includes(command)) result = downloadResult(result, prepared?.platform || 'direct', options.engine, target);
+  if (command === 'link') { output(renderExport(result, options.format)); return result; }
   output(JSON.stringify(result, null, 2));
   if (result?.results?.some(item => item.status === 'failed')) {
     const error = new Error('部分下载任务失败，详情见输出的结果 JSON');
