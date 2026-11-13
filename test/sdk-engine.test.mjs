@@ -31,6 +31,7 @@ try {
     sdkDataDir: path.join(root, 'sdk'),
   });
   assert.equal(result.size, content.length);
+  assert.ok(calls.findIndex(([name]) => name === 'token') < calls.findIndex(([name]) => name === 'start'), '加速 token 必须在任务启动前设置');
   assert.equal(calls.find(([name]) => name === 'init')[1].peerId, 'testPeerId');
   assert.equal(calls.find(([name]) => name === 'create')[1].filePath, path.dirname(dest));
   assert.equal(calls.find(([name]) => name === 'create')[1].cookie, 'sid=abc');
@@ -42,6 +43,21 @@ try {
   );
   assert.deepEqual(calls.find(([name]) => name === 'token'), ['token', 7, -1, { accelerateType: 1, jwt: 'signed-token' }]);
   assert.deepEqual(calls.slice(-2).map(([name]) => name), ['release', 'uninit']);
+
+  const failedTokenCalls = [];
+  const failedTokenAddon = {
+    ...addon,
+    createP2spTask: (options) => { failedTokenCalls.push(['create', options]); return { errno: 9000, taskId: 8 }; },
+    setAccelerateToken: () => { failedTokenCalls.push(['token']); return 9001; },
+    startTask: () => { failedTokenCalls.push(['start']); return 9000; },
+    releaseTask: () => { failedTokenCalls.push(['release']); },
+    unInit: () => { failedTokenCalls.push(['uninit']); },
+  };
+  await assert.rejects(
+    downloadSdk({ url: 'https://example.com/file', dest, size: content.length, token: 'bad-token', auth, addon: failedTokenAddon }),
+    /设置加速 Token 失败：9001/,
+  );
+  assert.deepEqual(failedTokenCalls.map(([name]) => name), ['create', 'token', 'release', 'uninit']);
 
   const share = new GameAssistantShare(auth, { fetchImpl: async (url) => ({
     ok: true, status: 200, json: async () => ({ code: 0, data: url.pathname.endsWith('TransferSpeedURL')
