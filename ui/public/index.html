@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="ODE-cloud 本地 Web 操作台：账号登录、分享解析、链接导出与多线程下载。">
+  <title>ODE-cloud · 本地下载控制台</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- SVG symbol sprite: keeps icons crisp without an icon dependency. -->
+  <svg class="svg-sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.07 0l2.12-2.12a5 5 0 0 0-7.07-7.07L10.7 5.23"/><path d="M14 11a5 5 0 0 0-7.07 0L4.8 13.12a5 5 0 0 0 7.07 7.07l1.42-1.42"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8.1 8.1 0 0 0-15.5-4M4 4v6h6"/><path d="M4 13a8.1 8.1 0 0 0 15.5 4M20 20v-6h-6"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M17.5 19a4.5 4.5 0 0 0 .5-8.97A7 7 0 0 0 4.4 12.1 4 4 0 0 0 5 20h12.5z"/><path d="m9.5 14 2.5 2.5 3-4"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></symbol>
+    <symbol id="i-loader" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M15 3h6v6M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6M12 19h8"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m11 12 8-8M17 4l3 3M15 6l3 3"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></symbol>
+    <symbol id="i-browser" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M7 6.5h.01M10 6.5h.01"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m7 4 13 8-13 8V4z"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/></symbol>
+    <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  </svg>
+
+  <div class="app-shell">
+    <aside id="sidebar" class="sidebar" aria-label="主导航">
+      <div class="sidebar-brand">
+        <a class="brand" href="#dashboard" data-nav="dashboard" aria-label="ODE-cloud 工作台">
+          <span class="brand-mark"><svg><use href="#i-cloud"></use></svg></span>
+          <span class="brand-text"><strong>ODE<span>cloud</span></strong><small>LOCAL DOWNLOAD CONSOLE</small></span>
+        </a>
+        <span class="local-pill"><i></i>LOCAL</span>
+      </div>
+
+      <nav class="side-nav" aria-label="功能">
+        <p class="nav-label">工作区</p>
+        <button class="nav-item is-active" type="button" data-nav="dashboard" aria-label="工作台">
+          <svg><use href="#i-grid"></use></svg><span>工作台</span>
+        </button>
+        <button class="nav-item" type="button" data-nav="accounts" aria-label="账号与平台">
+          <svg><use href="#i-users"></use></svg><span>账号与平台</span><em id="nav-account-count" class="nav-badge">0</em>
+        </button>
+        <button class="nav-item" type="button" data-nav="parse" aria-label="分享解析">
+          <svg><use href="#i-link"></use></svg><span>分享解析</span>
+        </button>
+        <button class="nav-item" type="button" data-nav="jobs" aria-label="下载任务">
+          <svg><use href="#i-download"></use></svg><span>下载任务</span><em id="nav-job-count" class="nav-badge" hidden>0</em>
+        </button>
+        <p class="nav-label nav-label-spaced">系统</p>
+        <button class="nav-item" type="button" data-nav="settings" aria-label="偏好设置">
+          <svg><use href="#i-settings"></use></svg><span>偏好设置</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-note">
+        <div class="note-icon"><svg><use href="#i-shield"></use></svg></div>
+        <div><strong>仅本机访问</strong><p>服务绑定 127.0.0.1，账号与会话都留在本机。</p></div>
+      </div>
+
+      <div class="sidebar-foot">
+        <span class="server-state" id="server-state"><i></i><span>连接中</span></span>
+        <span class="version" id="server-version">v1.0.0</span>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <!-- macOS 窗口控件：纯装饰，不参与交互 -->
+        <div class="window-controls" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="topbar-heading">
+          <div>
+            <p id="page-eyebrow" class="eyebrow">工作台</p>
+            <h1 id="page-title">下载控制台</h1>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button id="top-refresh" class="icon-btn" type="button" aria-label="刷新账号状态" data-tip="刷新账号状态">
+            <svg><use href="#i-refresh"></use></svg>
+          </button>
+          <button id="theme-btn" class="icon-btn" type="button" aria-label="切换主题" data-tip="切换明暗主题">
+            <svg class="icon-moon"><use href="#i-moon"></use></svg>
+            <svg class="icon-sun"><use href="#i-sun"></use></svg>
+          </button>
+          <div class="top-divider" aria-hidden="true"></div>
+          <div class="top-output" title="服务器默认下载目录">
+            <svg><use href="#i-folder"></use></svg>
+            <span id="top-output-path">读取中…</span>
+          </div>
+        </div>
+      </header>
+
+      <main id="main-content" class="content">
+        <!-- ============================== 工作台 ============================== -->
+        <section class="view is-active" data-view="dashboard" aria-labelledby="dashboard-title">
+          <h2 id="dashboard-title" class="sr-only">工作台</h2>
+          <div class="dashboard-hero">
+            <section class="panel hero-panel">
+              <div class="panel-glow" aria-hidden="true"></div>
+              <div class="eyebrow-row"><span class="eyebrow">QUICK START</span><span class="status-chip live"><i></i>服务在线</span></div>
+              <h2>把分享链接，变成<br><span class="gradient-text">可下载的文件。</span></h2>
+              <p class="hero-copy">粘贴网盘分享链接或整段分享文案。解析后可以挑选文件、导出官方直链，或直接交给本地下载引擎。</p>
+              <button type="button" class="btn btn-primary" data-nav="parse"><svg><use href="#i-link"></use></svg>去解析分享</button>
+            </section>
+
+            <aside class="panel stats-panel" aria-label="概览数据">
+              <div class="panel-head"><div><p class="eyebrow">OVERVIEW</p><h3>运行概览</h3></div><span id="stats-updated" class="muted">等待同步</span></div>
+              <div class="stat-grid">
+                <div class="stat-cell"><span class="stat-icon blue"><svg><use href="#i-users"></use></svg></span><div><strong id="stat-accounts">–</strong><span>已登录账号</span></div></div>
+                <div class="stat-cell"><span class="stat-icon green"><svg><use href="#i-download"></use></svg></span><div><strong id="stat-active">0</strong><span>运行中任务</span></div></div>
+                <div class="stat-cell"><span class="stat-icon violet"><svg><use href="#i-file"></use></svg></span><div><strong id="stat-files">0</strong><span>已解析文件</span></div></div>
+                <div class="stat-cell"><span class="stat-icon amber"><svg><use href="#i-zap"></use></svg></span><div><strong id="stat-bytes">0 B</strong><span>本次下载量</span></div></div>
+              </div>
+              <div class="account-strip" id="dashboard-account-strip">
+                <span class="mini-dot"></span><span>正在读取本机会话…</span>
+              </div>
+            </aside>
+          </div>
+
+          <div class="dashboard-lower">
+            <section class="panel">
+              <div class="panel-head"><div><p class="eyebrow">RECENT ACTIVITY</p><h3>最近任务</h3></div><button class="text-btn" type="button" data-nav="jobs">全部任务 <svg><use href="#i-chevron"></use></svg></button></div>
+              <div id="recent-jobs" class="recent-list"><div class="empty-inline"><svg><use href="#i-clock"></use></svg><span>还没有下载任务</span></div></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><div><p class="eyebrow">PLATFORMS</p><h3>平台连接</h3></div><button class="text-btn" type="button" data-nav="accounts">管理账号 <svg><use href="#i-chevron"></use></svg></button></div>
+              <div id="dashboard-platforms" class="platform-strip"><span class="muted">正在检查…</span></div>
+            </section>
+          </div>
+
+          <section class="tip-band">
+            <div class="tip-band-icon"><svg><use href="#i-info"></use></svg></div>
+            <div><strong>第一次使用？</strong><p>先在「账号与平台」完成官网登录。解析公开分享（UC / 光鸭）无需账号；百度目前只支持文件列表。</p></div>
+            <button class="btn btn-ghost btn-sm" type="button" data-nav="accounts">去登录 <svg><use href="#i-right"></use></svg></button>
+          </section>
+        </section>
+
+        <!-- ============================== 账号 ============================== -->
+        <section class="view" data-view="accounts" aria-labelledby="accounts-title" hidden>
+          <div class="section-head">
+            <div><p class="eyebrow">CONNECTIONS</p><h2 id="accounts-title">账号与平台</h2><p>登录会在服务器上打开独立的 Chrome / Edge 窗口，完成后自动捕获本机会话。</p></div>
+            <button id="accounts-refresh" class="btn btn-ghost" type="button"><svg><use href="#i-refresh"></use></svg>刷新状态</button>
+          </div>
+          <div class="callout callout-info"><svg><use href="#i-shield"></use></svg><div><strong>凭据只留在本机</strong><p>会话写入 ODE-cloud 的本地凭据目录。页面不会读取、显示或上传 Cookie、token 与验证码。</p></div></div>
+          <div id="accounts-grid" class="accounts-grid" aria-live="polite">
+            <div class="account-skeleton"></div><div class="account-skeleton"></div><div class="account-skeleton"></div><div class="account-skeleton"></div>
+          </div>
+          <div class="guest-row panel">
+            <div><p class="eyebrow">GUEST MODE</p><h3>无需登录的分享</h3><p>UC 与光鸭使用官方游客/公开接口，直接粘贴分享链接即可解析，受官方游客权限与分享者设置限制。</p></div>
+            <div class="guest-chips"><span class="platform-pill"><i style="--c:#fbbf24"></i>UC 网盘</span><span class="platform-pill"><i style="--c:#f472b6"></i>光鸭网盘</span></div>
+          </div>
+        </section>
+
+        <!-- ============================== 解析 ============================== -->
+        <section class="view" data-view="parse" aria-labelledby="parse-title" hidden>
+          <div class="section-head">
+            <div><p class="eyebrow">SHARE PARSER</p><h2 id="parse-title">分享解析</h2><p>支持官方 HTTPS 分享链接或包含链接、提取码的完整文案。</p></div>
+            <button id="direct-open" class="btn btn-ghost" type="button"><svg><use href="#i-terminal"></use></svg>直链下载</button>
+          </div>
+
+          <section class="panel parse-input-panel">
+            <form id="share-form" novalidate>
+              <label class="field-label" for="share-input">分享链接或文案</label>
+              <div class="share-input-box">
+                <textarea id="share-input" rows="3" maxlength="20000" placeholder="例如：https://pan.quark.cn/s/xxxxxx&#10;或：复制整段分享文案，包含访问码"></textarea>
+                <div class="share-input-actions">
+                  <button id="paste-btn" class="btn btn-quiet btn-sm" type="button"><svg><use href="#i-copy"></use></svg>粘贴</button>
+                  <button id="clear-share" class="btn btn-quiet btn-sm" type="button">清空</button>
+                  <button id="parse-btn" class="btn btn-primary" type="submit"><span class="btn-label">解析分享</span><span class="spinner" aria-hidden="true"></span><svg class="btn-icon"><use href="#i-right"></use></svg></button>
+                </div>
+              </div>
+              <p id="parse-hint" class="field-hint"><svg><use href="#i-info"></use></svg>访问码请保留在链接或分享文案中；解析不会绕过验证码或账号权限。</p>
+            </form>
+            <div id="parse-error" class="inline-alert inline-alert-error" role="alert" hidden><svg><use href="#i-alert"></use></svg><span></span></div>
+          </section>
+
+          <div id="share-result" class="parse-result" hidden>
+            <div class="share-overview panel">
+              <div class="share-platform" id="share-platform"><span class="platform-logo">?</span><div><p class="eyebrow">PARSED SHARE</p><h3>—</h3><span id="share-platform-note" class="muted"></span></div></div>
+              <div class="share-numbers">
+                <div><strong id="share-count">0</strong><span>个文件</span></div>
+                <div><strong id="share-size">—</strong><span>总大小</span></div>
+                <div><strong id="share-selected-count">0</strong><span>已选择</span></div>
+              </div>
+            </div>
+
+            <div class="parse-columns">
+              <section class="panel file-panel">
+                <div class="file-toolbar">
+                  <label class="check-line select-all-line"><input id="select-all-files" type="checkbox"><span>全选</span></label>
+                  <div class="search-box"><svg><use href="#i-search"></use></svg><input id="file-search" type="search" placeholder="筛选文件路径" autocomplete="off"></div>
+                  <span id="file-visible-count" class="muted"></span>
+                </div>
+                <div class="file-table-wrap">
+                  <table id="file-table" class="file-table">
+                    <caption class="sr-only">分享中的文件列表</caption>
+                    <thead><tr><th class="check-col" scope="col"><span class="sr-only">选择</span></th><th scope="col">文件</th><th scope="col">大小</th><th scope="col">类型</th></tr></thead>
+                    <tbody id="file-body"></tbody>
+                  </table>
+                  <div id="file-empty" class="empty-state" hidden><div class="empty-icon"><svg><use href="#i-search"></use></svg></div><h4>没有匹配的文件</h4><p>换一个关键词，或清空筛选条件。</p><button id="file-empty-reset" class="btn btn-ghost btn-sm" type="button">清空筛选</button></div>
+                </div>
+                <div id="file-limit-note" class="table-note" hidden></div>
+              </section>
+
+              <aside class="parse-side">
+                <section class="panel action-panel">
+                  <p class="eyebrow">NEXT STEP</p>
+                  <h3>选择后续操作</h3>
+                  <p id="action-copy" class="muted">先在左侧选择文件，或直接使用全部文件。</p>
+                  <div class="action-stack">
+                    <button id="export-open" class="btn btn-primary" type="button" disabled><svg><use href="#i-link"></use></svg>导出下载链接</button>
+                    <button id="download-open" class="btn btn-secondary" type="button" disabled><svg><use href="#i-download"></use></svg>下载所选文件</button>
+                  </div>
+                  <div id="platform-limit" class="mini-note" hidden><svg><use href="#i-alert"></use></svg><span></span></div>
+                  <div class="divider"></div>
+                  <dl class="meta-list">
+                    <div><dt>平台</dt><dd id="meta-platform">—</dd></div>
+                    <div><dt>分享类型</dt><dd id="meta-kind">—</dd></div>
+                    <div><dt>解析时间</dt><dd id="meta-time">—</dd></div>
+                  </dl>
+                </section>
+                <section class="panel safety-panel">
+                  <div class="safety-icon"><svg><use href="#i-shield"></use></svg></div>
+                  <h4>链接是敏感凭据</h4>
+                  <p>导出的直链可能包含短期 token 与 Cookie，只应在可信的下载器中使用，不要公开分享。</p>
+                </section>
+              </aside>
+            </div>
+
+            <div id="selection-bar" class="selection-bar" hidden>
+              <div><strong id="selection-count">0</strong><span>个文件已选择</span><em id="selection-size">0 B</em></div>
+              <div class="selection-actions"><button id="selection-clear" class="text-btn" type="button">取消选择</button><button id="selection-download" class="btn btn-primary btn-sm" type="button"><svg><use href="#i-download"></use></svg>下载</button></div>
+            </div>
+          </div>
+
+          <div id="parse-placeholder" class="panel parse-placeholder">
+            <div class="placeholder-orbit"><span></span><span></span><span></span><svg><use href="#i-link"></use></svg></div>
+            <h3>解析结果会出现在这里</h3>
+            <p>粘贴链接后，文件树、大小、平台限制与后续操作都会在这个区域展开。</p>
+          </div>
+        </section>
+
+        <!-- ============================== 任务 ============================== -->
+        <section class="view" data-view="jobs" aria-labelledby="jobs-title" hidden>
+          <div class="section-head">
+            <div><p class="eyebrow">TRANSFERS</p><h2 id="jobs-title">下载任务</h2><p>下载进度由本地管线实时回传。关闭页面不会中断已经启动的任务。</p></div>
+            <div class="head-actions"><span id="jobs-live" class="status-chip"><i></i>空闲</span><button id="jobs-refresh" class="btn btn-ghost" type="button"><svg><use href="#i-refresh"></use></svg>刷新</button></div>
+          </div>
+          <div id="jobs-list" class="jobs-list" aria-live="polite"></div>
+          <div id="jobs-empty" class="panel empty-state jobs-empty"><div class="empty-icon"><svg><use href="#i-download"></use></svg></div><h3>还没有任务</h3><p>解析分享后选择文件下载，任务会在这里显示进度与结果。</p><button class="btn btn-primary" type="button" data-nav="parse"><svg><use href="#i-link"></use></svg>去解析分享</button></div>
+        </section>
+
+        <!-- ============================== 设置 ============================== -->
+        <section class="view" data-view="settings" aria-labelledby="settings-title" hidden>
+          <div class="section-head"><div><p class="eyebrow">PREFERENCES</p><h2 id="settings-title">偏好设置</h2><p>下载默认值保存在当前浏览器；SDK 组件目录写入本机配置。</p></div></div>
+          <div class="settings-grid">
+            <form id="settings-form" class="panel settings-card" novalidate>
+              <div class="panel-head"><div><h3>下载默认值</h3><p class="muted">用于预填下载弹窗，可在每次下载时覆盖。</p></div></div>
+              <label class="field"><span class="field-label">默认下载目录</span><div class="input-action"><input id="default-target" type="text" maxlength="4096" placeholder="D:/Downloads/ODE-cloud" autocomplete="off"><button id="browse-default-target" class="btn btn-secondary btn-sm" type="button" aria-label="选择默认下载目录"><svg class="btn-icon"><use href="#i-folder"></use></svg><span>选择</span></button></div><small class="field-hint">服务器端绝对路径；目录不存在时会自动创建。</small></label>
+              <div class="field-row settings-fields">
+                <label class="field"><span class="field-label">默认引擎</span><select id="default-engine"><option value="http">HTTP 多并发</option><option value="sdk">迅雷 SDK</option></select><small class="field-hint">SDK 仅对迅雷有效。</small></label>
+                <label class="field"><span class="field-label">并发数</span><input id="default-workers" type="number" min="1" max="32" step="1" value="8"><small class="field-hint">1–32。</small></label>
+                <label class="field"><span class="field-label">分片 MiB</span><input id="default-chunk" type="number" min="1" max="1024" step="1" placeholder="自动"><small class="field-hint">留空自动。</small></label>
+              </div>
+              <div class="divider"></div>
+              <div class="sdk-block">
+                <div class="sdk-head">
+                  <div><h3>迅雷 SDK</h3><p class="muted">仅迅雷分享可用；并发与分片由组件自行调度。</p></div>
+                  <span id="sdk-status" class="status-chip">检测中</span>
+                </div>
+                <div class="sdk-current">
+                  <span class="field-label">当前组件目录</span>
+                  <code id="sdk-current-dir">—</code>
+                  <small id="sdk-current-hint" class="field-hint">下载后会自动校验组件文件并设为当前目录。</small>
+                </div>
+                <div class="sdk-tools">
+                  <button id="sdk-install-open" class="btn btn-secondary btn-sm" type="button"><svg class="btn-icon"><use href="#i-download"></use></svg><span>下载 SDK</span></button>
+                  <button id="sdk-refresh" class="text-btn" type="button"><svg><use href="#i-refresh"></use></svg>重新检测</button>
+                  <span class="muted small" id="sdk-checked-at"></span>
+                </div>
+              </div>
+              <div class="form-actions"><button id="settings-save" class="btn btn-primary" type="submit">保存偏好</button><button id="settings-reset" class="btn btn-ghost" type="button">恢复默认</button></div>
+            </form>
+
+            <section class="panel settings-card">
+              <div class="panel-head"><div><h3>外观与信息</h3><p class="muted">客户端状态与运行环境。</p></div></div>
+              <div class="setting-line"><div><strong>主题</strong><span>浅色 / 深色，自动记忆。</span></div><button id="settings-theme" class="btn btn-ghost btn-sm" type="button">切换主题</button></div>
+              <div class="setting-line"><div><strong>服务地址</strong><span id="settings-url">—</span></div><span class="mini-badge">127.0.0.1</span></div>
+              <div class="setting-line"><div><strong>Node.js</strong><span id="settings-node">—</span></div><span class="mini-badge">本机</span></div>
+              <div class="setting-line"><div><strong>下载目录</strong><span id="settings-output">—</span></div><span class="mini-badge">server</span></div>
+              <div class="divider"></div>
+              <p class="muted small">ODE-cloud 只访问你主动提交的官方分享链接。登录、校验与下载受网盘官方接口、账号权限和风控限制。</p>
+              <div class="about-line"><span>ODE-cloud Web UI</span><span>v1.0.0</span></div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- ============================ SDK 下载弹窗 ============================ -->
+  <dialog id="sdk-install-dialog" class="modal" aria-labelledby="sdk-install-title">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="modal-title-wrap"><span class="modal-logo"><svg><use href="#i-zap"></use></svg></span><div><p class="eyebrow">SDK INSTALLER</p><h2 id="sdk-install-title">下载 SDK 组件</h2></div></div>
+        <button class="icon-btn modal-close" type="button" data-close="sdk-install-dialog" aria-label="关闭"><svg><use href="#i-x"></use></svg></button>
+      </div>
+      <form id="sdk-install-form" novalidate>
+        <div class="modal-body">
+          <div class="callout callout-info"><svg><use href="#i-shield"></use></svg><div><strong>只安装经过校验的官方组件</strong><p>支持 HTTPS ZIP 直链，或小飞机无密码单文件分享。服务端会校验 SHA-256 后写入目录，不会执行下载内容。</p></div></div>
+          <label class="field"><span class="field-label">下载地址</span><input id="sdk-install-url" type="url" maxlength="4096" placeholder="https://example.com/xunlei-sdk.zip" autocomplete="off"><small id="sdk-install-url-error" class="field-error" hidden></small></label>
+          <label class="field"><span class="field-label">安装到</span><div class="input-action"><input id="sdk-install-target" type="text" maxlength="4096" autocomplete="off"><button id="sdk-install-default" class="btn btn-secondary btn-sm" type="button">默认目录</button></div><small class="field-hint">目录不存在会自动创建；目标目录已有同名组件时不会覆盖。</small></label>
+          <div id="sdk-install-error" class="inline-alert inline-alert-error" role="alert" hidden><svg><use href="#i-alert"></use></svg><span></span></div>
+          <div class="mini-note"><svg><use href="#i-info"></use></svg><span>下载与校验在本机服务中完成，可能需要几十秒；完成后会自动设为当前 SDK 目录。</span></div>
+        </div>
+        <div class="modal-foot">
+          <span class="muted small">组件来源地址不会写入日志。</span>
+          <div class="modal-foot-actions">
+            <button class="btn btn-ghost" type="button" data-close="sdk-install-dialog">取消</button>
+            <button id="sdk-install-start" class="btn btn-primary" type="submit"><span class="btn-label">下载并安装</span><span class="spinner" aria-hidden="true"></span><svg class="btn-icon"><use href="#i-download"></use></svg></button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- ============================== 登录弹窗 ============================== -->
+  <dialog id="login-dialog" class="modal" aria-labelledby="login-title">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="modal-title-wrap"><span id="login-logo" class="modal-logo">?</span><div><p id="login-kicker" class="eyebrow">CONNECT</p><h2 id="login-title">登录平台</h2></div></div>
+        <button class="icon-btn modal-close" type="button" data-close="login-dialog" aria-label="关闭"><svg><use href="#i-x"></use></svg></button>
+      </div>
+      <div class="modal-body">
+        <div id="login-tabs" class="segmented" role="tablist" aria-label="登录方式" hidden>
+          <button class="segment is-active" type="button" role="tab" aria-selected="true" data-login-mode="browser"><svg><use href="#i-browser"></use></svg>官网浏览器</button>
+          <button class="segment" type="button" role="tab" aria-selected="false" data-login-mode="sms"><svg><use href="#i-phone"></use></svg>短信验证码</button>
+        </div>
+        <div id="login-browser-panel" class="login-panel">
+          <div class="callout callout-info"><svg><use href="#i-browser"></use></svg><div><strong>将打开独立浏览器窗口</strong><p>请在弹出的官网页面完成手机号、扫码或验证码登录。程序自动检测本机会话，不会代填验证码。</p></div></div>
+          <ul class="login-points"><li><svg><use href="#i-check"></use></svg>使用临时浏览器 profile，不读取日常浏览器账号</li><li><svg><use href="#i-check"></use></svg>检测到会话后自动校验并保存到本机</li><li><svg><use href="#i-check"></use></svg>若自动检测失败，可点击下方「重新检测」</li></ul>
+          <div id="login-job-panel" class="login-job" hidden>
+            <div class="job-status-line"><span class="spinner is-active" id="login-spinner"></span><span id="login-status">正在打开浏览器…</span></div>
+            <div id="login-events" class="event-log" aria-live="polite"></div>
+            <button id="login-confirm" class="btn btn-ghost btn-sm" type="button"><svg><use href="#i-refresh"></use></svg>我已登录，重新检测</button>
+          </div>
+          <button id="login-start" class="btn btn-primary btn-block" type="button"><svg><use href="#i-external"></use></svg>打开官网登录</button>
+        </div>
+        <div id="login-sms-panel" class="login-panel" hidden>
+          <div class="callout callout-warn"><svg><use href="#i-info"></use></svg><div><strong>仅迅雷支持短信登录</strong><p>验证码只发送到你的手机。发送后 10 分钟内完成校验，失败不会替换已有会话。</p></div></div>
+          <form id="sms-form" novalidate>
+            <label class="field"><span class="field-label">手机号</span><div class="input-action"><input id="sms-phone" type="tel" inputmode="numeric" maxlength="11" placeholder="11 位中国大陆手机号" autocomplete="tel"><button id="sms-send" class="btn btn-secondary btn-sm" type="button">发送验证码</button></div><small id="sms-phone-error" class="field-error" hidden></small></label>
+            <label class="field"><span class="field-label">短信验证码</span><input id="sms-code" type="text" inputmode="numeric" maxlength="8" placeholder="4–8 位数字" autocomplete="one-time-code"><small id="sms-code-error" class="field-error" hidden></small></label>
+            <button id="sms-verify" class="btn btn-primary btn-block" type="submit"><span class="btn-label">验证并登录</span><span class="spinner" aria-hidden="true"></span></button>
+          </form>
+        </div>
+      </div>
+      <div class="modal-foot"><span class="muted small"><svg class="inline-icon"><use href="#i-shield"></use></svg>敏感信息不会离开本机</span><button class="btn btn-ghost btn-sm" type="button" data-close="login-dialog">关闭</button></div>
+    </div>
+  </dialog>
+
+  <!-- ============================== 下载弹窗 ============================== -->
+  <dialog id="download-dialog" class="modal" aria-labelledby="download-title">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="modal-title-wrap"><span class="modal-logo accent"><svg><use href="#i-download"></use></svg></span><div><p class="eyebrow">TRANSFER</p><h2 id="download-title">开始下载</h2></div></div>
+        <button class="icon-btn modal-close" type="button" data-close="download-dialog" aria-label="关闭"><svg><use href="#i-x"></use></svg></button>
+      </div>
+      <form id="download-form" novalidate>
+        <div class="modal-body">
+          <div class="selection-preview"><div><strong id="download-count">0</strong><span>个文件</span></div><div><strong id="download-size">0 B</strong><span>预计大小</span></div><div><strong id="download-platform">—</strong><span>来源平台</span></div></div>
+          <label class="field"><span class="field-label">下载目录</span><div class="input-action"><input id="download-target" type="text" maxlength="4096" autocomplete="off"><button id="browse-download-target" class="btn btn-secondary btn-sm" type="button" aria-label="选择下载目录"><svg class="btn-icon"><use href="#i-folder"></use></svg><span>选择</span></button></div><small class="field-hint">服务器端路径；不存在会自动创建。下载会保留分享中的目录层级。</small></label>
+          <div class="field-row">
+            <label class="field"><span class="field-label">下载引擎</span><select id="download-engine"><option value="http">HTTP 多并发</option><option value="sdk">迅雷 SDK</option></select><small id="download-engine-hint" class="field-hint">默认 HTTP，稳定且无需组件。</small></label>
+            <label class="field"><span class="field-label">并发数</span><input id="download-workers" type="number" min="1" max="32" step="1" value="8"><small class="field-hint">1–32。</small></label>
+            <label class="field"><span class="field-label">分片 MiB</span><input id="download-chunk" type="number" min="1" max="1024" step="1" placeholder="自动"><small class="field-hint">留空自动。</small></label>
+          </div>
+          <div id="download-sdk-note" class="sdk-download-note" hidden>
+            <span class="sdk-download-icon"><svg><use href="#i-zap"></use></svg></span>
+            <div class="sdk-download-copy"><strong id="download-sdk-title">迅雷 SDK 组件未就绪</strong><p id="download-sdk-text">请先下载迅雷 SDK 组件，再使用 SDK 引擎。</p></div>
+            <button id="download-sdk-settings" class="text-btn" type="button">下载 SDK<svg><use href="#i-right"></use></svg></button>
+          </div>
+          <div id="download-error" class="inline-alert inline-alert-error" role="alert" hidden><svg><use href="#i-alert"></use></svg><span></span></div>
+          <div class="mini-note"><svg><use href="#i-info"></use></svg><span id="download-note">文件会按顺序写入目标目录；已在运行 2 个任务时会拒绝新任务。</span></div>
+        </div>
+        <div class="modal-foot">
+          <button id="download-open-folder" class="btn btn-ghost" type="button" aria-label="在系统文件管理器中打开当前下载目录" data-tip="在资源管理器中打开当前下载目录">
+            <svg class="btn-icon"><use href="#i-folder"></use></svg><span class="btn-label">打开文件夹</span>
+          </button>
+          <div class="modal-foot-actions">
+            <button class="btn btn-ghost" type="button" data-close="download-dialog">取消</button>
+            <button id="download-start" class="btn btn-primary" type="submit"><span class="btn-label">开始下载</span><span class="spinner" aria-hidden="true"></span><svg class="btn-icon"><use href="#i-download"></use></svg></button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- ============================== 导出链接弹窗 ============================== -->
+  <dialog id="links-dialog" class="modal modal-wide" aria-labelledby="links-title">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="modal-title-wrap"><span class="modal-logo accent"><svg><use href="#i-link"></use></svg></span><div><p class="eyebrow">EXPORT</p><h2 id="links-title">导出下载链接</h2></div></div>
+        <button class="icon-btn modal-close" type="button" data-close="links-dialog" aria-label="关闭"><svg><use href="#i-x"></use></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="links-toolbar"><div id="links-tabs" class="segmented" role="tablist" aria-label="导出格式"><button class="segment is-active" type="button" role="tab" aria-selected="true" data-format="json">JSON</button><button class="segment" type="button" role="tab" aria-selected="false" data-format="curl">curl</button><button class="segment" type="button" role="tab" aria-selected="false" data-format="aria2">aria2</button></div><span id="links-count" class="muted"></span></div>
+        <div class="callout callout-warn"><svg><use href="#i-alert"></use></svg><div><strong>链接会过期，并可能包含认证信息</strong><p>仅复制到可信下载器。不要在聊天、公开仓库或共享终端中粘贴。</p></div></div>
+        <div id="links-loading" class="links-loading" hidden><span class="spinner is-active"></span><span>正在向网盘申请新鲜直链…</span></div>
+        <pre id="links-output" class="code-output" tabindex="0" aria-label="导出的链接内容">选择格式后点击生成。</pre>
+        <div id="links-error" class="inline-alert inline-alert-error" role="alert" hidden><svg><use href="#i-alert"></use></svg><span></span></div>
+      </div>
+      <div class="modal-foot"><span class="muted small">每次点击格式会重新取链，旧链接可能已失效。</span><div class="modal-foot-actions"><button id="links-save" class="btn btn-ghost" type="button" disabled><svg><use href="#i-download"></use></svg>保存文本</button><button id="links-copy" class="btn btn-primary" type="button" disabled><svg><use href="#i-copy"></use></svg>复制</button></div></div>
+    </div>
+  </dialog>
+
+  <!-- ============================== 直链弹窗 ============================== -->
+  <dialog id="direct-dialog" class="modal" aria-labelledby="direct-title">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="modal-title-wrap"><span class="modal-logo"><svg><use href="#i-terminal"></use></svg></span><div><p class="eyebrow">DIRECT URL</p><h2 id="direct-title">直链下载</h2></div></div>
+        <button class="icon-btn modal-close" type="button" data-close="direct-dialog" aria-label="关闭"><svg><use href="#i-x"></use></svg></button>
+      </div>
+      <form id="direct-form" novalidate>
+        <div class="modal-body">
+          <div class="callout callout-info"><svg><use href="#i-info"></use></svg><div><strong>只接受 HTTP(S) 文件直链</strong><p>网盘分享页请使用「分享解析」。直链不会附带任何网盘账号凭据。</p></div></div>
+          <label class="field"><span class="field-label">文件直链</span><input id="direct-url" type="url" maxlength="4096" placeholder="https://example.com/file.zip" autocomplete="off"><small id="direct-url-error" class="field-error" hidden></small></label>
+          <label class="field"><span class="field-label">保存到文件</span><div class="input-action"><input id="direct-target" type="text" maxlength="4096" placeholder="D:/Downloads/file.zip" autocomplete="off"><button id="browse-direct-target" class="btn btn-secondary btn-sm" type="button" aria-label="选择保存文件夹"><svg class="btn-icon"><use href="#i-folder"></use></svg><span>选择</span></button></div><small class="field-hint">必须是包含文件名的完整路径；选择文件夹时会自动补上直链文件名。</small></label>
+          <div class="field-row">
+            <label class="field"><span class="field-label">并发数</span><input id="direct-workers" type="number" min="1" max="32" step="1" value="8"></label>
+            <label class="field"><span class="field-label">分片 MiB</span><input id="direct-chunk" type="number" min="1" max="1024" step="1" placeholder="自动"></label>
+          </div>
+          <div id="direct-error" class="inline-alert inline-alert-error" role="alert" hidden><svg><use href="#i-alert"></use></svg><span></span></div>
+        </div>
+        <div class="modal-foot"><button class="btn btn-ghost" type="button" data-close="direct-dialog">取消</button><button id="direct-start" class="btn btn-primary" type="submit"><span class="btn-label">开始下载</span><span class="spinner" aria-hidden="true"></span><svg class="btn-icon"><use href="#i-download"></use></svg></button></div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- ============================== 账号详情 / 确认 ============================== -->
+  <dialog id="account-dialog" class="modal" aria-labelledby="account-dialog-title">
+    <div class="modal-card">
+      <div class="modal-head"><div class="modal-title-wrap"><span class="modal-logo"><svg><use href="#i-users"></use></svg></span><div><p class="eyebrow">ACCOUNT</p><h2 id="account-dialog-title">账号详情</h2></div></div><button class="icon-btn modal-close" type="button" data-close="account-dialog" aria-label="关闭"><svg><use href="#i-x"></use></svg></button></div>
+      <div class="modal-body"><pre id="account-json" class="code-output" tabindex="0"></pre></div>
+      <div class="modal-foot"><span class="muted small">字段来自官方账号接口的白名单，不含 Cookie/token。</span><button class="btn btn-ghost btn-sm" type="button" data-close="account-dialog">关闭</button></div>
+    </div>
+  </dialog>
+
+  <dialog id="confirm-dialog" class="modal modal-sm" aria-labelledby="confirm-title">
+    <div class="modal-card">
+      <div class="modal-head"><div class="modal-title-wrap"><span class="modal-logo danger"><svg><use href="#i-alert"></use></svg></span><div><p class="eyebrow">CONFIRM</p><h2 id="confirm-title">确认操作</h2></div></div><button class="icon-btn modal-close" type="button" data-close="confirm-dialog" aria-label="关闭"><svg><use href="#i-x"></use></svg></button></div>
+      <div class="modal-body"><p id="confirm-message" class="confirm-copy"></p></div>
+      <div class="modal-foot"><button class="btn btn-ghost" type="button" data-close="confirm-dialog">取消</button><button id="confirm-ok" class="btn btn-danger" type="button">确认</button></div>
+    </div>
+  </dialog>
+
+  <div id="toast-stack" class="toast-stack" aria-live="polite" aria-atomic="false"></div>
+  <div id="tooltip" class="tooltip" role="tooltip"></div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
