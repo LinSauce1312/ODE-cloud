@@ -58,8 +58,8 @@ node cli.mjs direct "https://example.com/file.zip" --output "./downloads/file.zi
 
 | 文档 | 内容 |
 | --- | --- |
-| [USAGE.md](./USAGE.md) | 全部命令与参数、登录流程、分享与下载、进度输出、环境变量、SDK 安装、常见报错 |
-| [DEVELOPMENT.md](./DEVELOPMENT.md) | 目录结构、调用链、模块职责、注入测试、扩展网盘与分发流程 |
+| [docx/USAGE.md](./docx/USAGE.md) | 全部命令与参数、登录流程、分享与下载、进度输出、环境变量、SDK 安装、常见报错 |
+| [docx/DEVELOPMENT.md](./docx/DEVELOPMENT.md) | 目录结构、调用链、模块职责、注入测试、扩展网盘与分发流程 |
 
 ## 安全与边界
 
